@@ -66,3 +66,97 @@ python -m app.news_fetcher
 
 - NewsAPIの無料プランでは商用利用や特定ソースの利用に制限があります。必ず利用規約を確認してください。
 - ブラウザの音声合成機能は環境によって利用可能な声の種類が異なります。
+# EconBrief (MVP)
+
+経済ニュースを収集して分析・音声化し、1日1回のまとめをメールで送るための最小構成MVPです。
+
+## 技術スタック
+- Next.js 14 (App Router)
+- TypeScript
+- Tailwind CSS
+- Prisma + PostgreSQL
+
+## セットアップ
+
+```bash
+npm install
+cp .env.example .env
+```
+
+`.env` を編集して必要な値を設定します。
+
+### DB migration
+
+```bash
+npm run prisma:generate
+npm run prisma:migrate
+```
+
+## ローカル起動
+
+```bash
+npm run dev
+```
+
+`http://localhost:3000` にアクセスします。
+
+## 環境変数
+
+| 変数 | 用途 |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL 接続文字列 |
+| `OPENAI_API_KEY` | OpenAI API キー |
+| `OPENAI_MODEL` | LLM モデル名 |
+| `OPENAI_TTS_VOICE` | TTS ボイス名 |
+| `S3_ENDPOINT` | S3 互換ストレージのエンドポイント |
+| `S3_REGION` | S3 リージョン |
+| `S3_BUCKET` | バケット名 |
+| `S3_ACCESS_KEY_ID` | アクセスキー |
+| `S3_SECRET_ACCESS_KEY` | シークレット |
+| `PUBLIC_BASE_URL` | 公開URL (例: `http://localhost:3000`) |
+| `SENDGRID_API_KEY` | SendGrid API キー |
+| `MAIL_TO` | 送信先メール |
+| `MAIL_FROM` | 送信元メール |
+
+## 画面
+
+- `/` 記事一覧 (検索・タグフィルタ)
+- `/articles/[id]` 記事詳細 (分析/台本/音声の生成ボタン)
+- `/logs` メール送信ログ
+
+## 運用方法 (Cron/API 呼び出し)
+
+### RSS 取り込み
+
+```bash
+curl -X POST http://localhost:3000/api/ingest/rss
+```
+
+### 記事分析
+
+```bash
+curl -X POST http://localhost:3000/api/articles/{articleId}/analyze
+```
+
+### 音声台本生成
+
+```bash
+curl -X POST http://localhost:3000/api/articles/{articleId}/script
+```
+
+### 音声生成
+
+```bash
+curl -X POST http://localhost:3000/api/scripts/{scriptId}/audio
+```
+
+### デイリーダイジェスト
+
+```bash
+curl -X POST http://localhost:3000/api/digest/daily
+```
+
+## 開発メモ
+
+- まだRSS取り込みやLLM/TTS/メール送信は未実装です。次のステップで実装します。
+- 記事本文は保存しません。保存対象はURL、タイトル、媒体名、公開日時、抜粋、タグ、生成物のみです。
