@@ -135,4 +135,9 @@ export async function POST() {
       { status: 500 }
     );
   }
+
+export async function POST() {
+  return NextResponse.json({
+    message: "デイリーダイジェスト生成は未実装です。次のステップで実装します。"
+  });
 }

@@ -14,6 +14,7 @@ export async function POST(
         source: true,
         analyses: { orderBy: { createdAt: "desc" }, take: 1 }
       }
+      where: { id: params.id }
     });
 
     if (!article) {
@@ -68,6 +69,8 @@ export async function POST(
     return NextResponse.json({
       message: "台本を生成しました。",
       scriptId: script.id
+    return NextResponse.json({
+      message: "台本生成は未実装です。次のステップで実装します。"
     });
   } catch (error) {
     console.error(error);

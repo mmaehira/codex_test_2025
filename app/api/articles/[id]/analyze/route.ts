@@ -12,6 +12,7 @@ export async function POST(
     const article = await prisma.article.findUnique({
       where: { id: params.id },
       include: { source: true }
+      where: { id: params.id }
     });
 
     if (!article) {
@@ -70,6 +71,8 @@ export async function POST(
     return NextResponse.json({
       message: "分析を生成しました。",
       analysisId: analysis.id
+    return NextResponse.json({
+      message: "分析生成は未実装です。次のステップで実装します。"
     });
   } catch (error) {
     console.error(error);

@@ -5,6 +5,7 @@ import { prisma } from "../../../../lib/prisma";
 import { uploadAudio } from "../../../../lib/storage";
 
 export const runtime = "nodejs";
+import { prisma } from "../../../../lib/prisma";
 
 export async function POST(
   _request: Request,
@@ -46,6 +47,8 @@ export async function POST(
       message: "音声を生成しました。",
       audioFileId: audioFile.id,
       publicUrl: stored.publicUrl
+    return NextResponse.json({
+      message: "音声生成は未実装です。次のステップで実装します。"
     });
   } catch (error) {
     console.error(error);
