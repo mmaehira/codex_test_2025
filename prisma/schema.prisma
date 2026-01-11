@@ -21,17 +21,6 @@ enum MailKind {
   DAILY_DIGEST
 }
 
-enum IngestStatus {
-  SUCCESS
-  FAILURE
-}
-
-enum ExternalService {
-  OPENAI
-  SENDGRID
-  S3
-}
-
 model Source {
   id        String   @id @default(cuid())
   name      String
@@ -58,7 +47,6 @@ model Article {
   analyses Analysis[]
   scripts  Script[]
 
-  @@index([urlNormalized])
 }
 
 model Analysis {
@@ -102,38 +90,4 @@ model MailLog {
   errorMessage String?
   sentAt       DateTime?
   createdAt    DateTime  @default(now())
-}
-
-model IngestLog {
-  id           String       @id @default(cuid())
-  sourceId     String?
-  rssUrl       String
-  status       IngestStatus
-  errorMessage String?
-  requestId    String?
-  createdAt    DateTime     @default(now())
-
-  source Source? @relation(fields: [sourceId], references: [id])
-
-  @@index([sourceId])
-}
-
-model ServiceErrorLog {
-  id           String          @id @default(cuid())
-  service      ExternalService
-  context      String
-  requestId    String?
-  articleId    String?
-  scriptId     String?
-  sourceId     String?
-  errorMessage String
-  createdAt    DateTime        @default(now())
-
-  article Article? @relation(fields: [articleId], references: [id])
-  script  Script?  @relation(fields: [scriptId], references: [id])
-  source  Source?  @relation(fields: [sourceId], references: [id])
-
-  @@index([articleId])
-  @@index([scriptId])
-  @@index([sourceId])
 }

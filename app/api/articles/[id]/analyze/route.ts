@@ -1,16 +1,13 @@
-import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
-import { analysisSchema } from "../../../../lib/analysis-schema";
-import { getEnv } from "../../../../lib/env";
-import { createChatCompletion, withRetry } from "../../../../lib/openai";
-import { prisma } from "../../../../lib/prisma";
-import { logServiceError } from "../../../../lib/service-error-log";
+import { analysisSchema } from "../../../../../lib/analysis-schema";
+import { getEnv } from "../../../../../lib/env";
+import { createChatCompletion, withRetry } from "../../../../../lib/openai";
+import { prisma } from "../../../../../lib/prisma";
 
 export async function POST(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
-  const requestId = randomUUID();
   try {
     const article = await prisma.article.findUnique({
       where: { id: params.id },
@@ -19,7 +16,7 @@ export async function POST(
 
     if (!article) {
       return NextResponse.json(
-        { error: "記事が見つかりません。", requestId, articleId: params.id },
+        { error: "記事が見つかりません。" },
         { status: 404 }
       );
     }
@@ -38,44 +35,26 @@ export async function POST(
       `タグ: ${article.tags.join(", ") || "なし"}`
     ].join("\n");
 
-    let content: string;
-    try {
-      content = await withRetry(() =>
-        createChatCompletion({
-          model,
-          temperature: 0.2,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are a financial analyst. Output strictly valid JSON."
-            },
-            { role: "user", content: prompt }
-          ]
-        })
-      );
-    } catch (error) {
-      await logServiceError({
-        service: "OPENAI",
-        context: "ANALYSIS",
-        error,
-        requestId,
-        articleId: article.id,
-        sourceId: article.sourceId
-      });
-      throw error;
-    }
+    const content = await withRetry(() =>
+      createChatCompletion({
+        model,
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a financial analyst. Output strictly valid JSON."
+          },
+          { role: "user", content: prompt }
+        ]
+      })
+    );
 
     const parsed = analysisSchema.safeParse(JSON.parse(content));
     if (!parsed.success) {
       return NextResponse.json(
-        {
-          error: "分析JSONの形式が不正です。",
-          requestId,
-          articleId: article.id,
-          sourceId: article.sourceId
-        },
+        { error: "分析JSONの形式が不正です。" },
         { status: 422 }
       );
     }
@@ -90,15 +69,12 @@ export async function POST(
 
     return NextResponse.json({
       message: "分析を生成しました。",
-      requestId,
-      analysisId: analysis.id,
-      articleId: article.id,
-      sourceId: article.sourceId
+      analysisId: analysis.id
     });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { error: "分析生成でエラーが発生しました。", requestId },
+      { error: "分析生成でエラーが発生しました。" },
       { status: 500 }
     );
   }

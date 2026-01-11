@@ -1,20 +1,21 @@
-import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
-import { getEnv } from "../../../lib/env";
-import { sendMail } from "../../../lib/mail";
-import { createChatCompletion, createSpeech, withRetry } from "../../../lib/openai";
-import { prisma } from "../../../lib/prisma";
-import { logServiceError } from "../../../lib/service-error-log";
-import { uploadAudio } from "../../../lib/storage";
+import { getEnv } from "../../../../lib/env";
+import { sendMail } from "../../../../lib/mail";
+import {
+  createChatCompletion,
+  createSpeech,
+  withRetry
+} from "../../../../lib/openai";
+import { prisma } from "../../../../lib/prisma";
+import { uploadAudio } from "../../../../lib/storage";
 
 export const runtime = "nodejs";
 
 export async function POST() {
-  const requestId = randomUUID();
   const toEmail = getEnv("MAIL_TO");
   if (!toEmail) {
     return NextResponse.json(
-      { error: "MAIL_TO が設定されていません。", requestId },
+      { error: "MAIL_TO が設定されていません。" },
       { status: 400 }
     );
   }
@@ -30,7 +31,7 @@ export async function POST() {
 
     if (analyses.length === 0) {
       return NextResponse.json(
-        { error: "分析済みの記事がありません。", requestId },
+        { error: "分析済みの記事がありません。" },
         { status: 400 }
       );
     }
@@ -48,31 +49,20 @@ export async function POST() {
       )
     ].join("\n");
 
-    let scriptText: string;
-    try {
-      scriptText = await withRetry(() =>
-        createChatCompletion({
-          model,
-          temperature: 0.4,
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are a professional script writer for finance podcasts."
-            },
-            { role: "user", content: prompt }
-          ]
-        })
-      );
-    } catch (error) {
-      await logServiceError({
-        service: "OPENAI",
-        context: "DAILY_DIGEST_SCRIPT",
-        error,
-        requestId
-      });
-      throw error;
-    }
+    const scriptText = await withRetry(() =>
+      createChatCompletion({
+        model,
+        temperature: 0.4,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a professional script writer for finance podcasts."
+          },
+          { role: "user", content: prompt }
+        ]
+      })
+    );
 
     const script = await prisma.script.create({
       data: {
@@ -82,42 +72,18 @@ export async function POST() {
     });
 
     const voice = getEnv("OPENAI_TTS_VOICE", "alloy") ?? "alloy";
-    let audioBuffer: Buffer;
-    try {
-      audioBuffer = await withRetry(() =>
-        createSpeech({
-          model: "gpt-4o-mini-tts",
-          voice,
-          input: script.text
-        })
-      );
-    } catch (error) {
-      await logServiceError({
-        service: "OPENAI",
-        context: "DAILY_DIGEST_AUDIO",
-        error,
-        requestId,
-        scriptId: script.id
-      });
-      throw error;
-    }
+    const audioBuffer = await withRetry(() =>
+      createSpeech({
+        model: "gpt-4o-mini-tts",
+        voice,
+        input: script.text
+      })
+    );
 
     const storageKey = `audio/daily-${script.id}-${Date.now()}.mp3`;
-    let stored;
-    try {
-      stored = await uploadAudio(storageKey, audioBuffer);
-    } catch (error) {
-      await logServiceError({
-        service: "S3",
-        context: "DAILY_DIGEST_AUDIO",
-        error,
-        requestId,
-        scriptId: script.id
-      });
-      throw error;
-    }
+    const stored = await uploadAudio(storageKey, audioBuffer);
 
-    const audioFile = await prisma.audioFile.create({
+    await prisma.audioFile.create({
       data: {
         scriptId: script.id,
         storageKey: stored.storageKey,
@@ -135,18 +101,7 @@ export async function POST() {
       script.text.slice(0, 1000)
     ].join("\n");
 
-    try {
-      await sendMail({ toEmail, subject, text: body });
-    } catch (error) {
-      await logServiceError({
-        service: "SENDGRID",
-        context: "DAILY_DIGEST_EMAIL",
-        error,
-        requestId,
-        scriptId: script.id
-      });
-      throw error;
-    }
+    await sendMail({ toEmail, subject, text: body });
 
     const log = await prisma.mailLog.create({
       data: {
@@ -160,10 +115,7 @@ export async function POST() {
 
     return NextResponse.json({
       message: "デイリーダイジェストを送信しました。",
-      requestId,
-      logId: log.id,
-      scriptId: script.id,
-      audioFileId: audioFile.id
+      logId: log.id
     });
   } catch (error) {
     console.error(error);
@@ -183,7 +135,7 @@ export async function POST() {
     });
 
     return NextResponse.json(
-      { error: "デイリーダイジェスト送信でエラーが発生しました。", requestId },
+      { error: "デイリーダイジェスト送信でエラーが発生しました。" },
       { status: 500 }
     );
   }
