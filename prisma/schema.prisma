@@ -36,7 +36,6 @@ model Article {
   sourceId      String
   url           String   @unique
   urlNormalized String   @unique
-  urlNormalized String
   title         String
   publishedAt   DateTime?
   fetchedAt     DateTime
