@@ -1,23 +1,25 @@
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { analysisSchema } from "../../../../lib/analysis-schema";
 import { getEnv } from "../../../../lib/env";
 import { createChatCompletion, withRetry } from "../../../../lib/openai";
 import { prisma } from "../../../../lib/prisma";
+import { logServiceError } from "../../../../lib/service-error-log";
 
 export async function POST(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
+  const requestId = randomUUID();
   try {
     const article = await prisma.article.findUnique({
       where: { id: params.id },
       include: { source: true }
-      where: { id: params.id }
     });
 
     if (!article) {
       return NextResponse.json(
-        { error: "記事が見つかりません。" },
+        { error: "記事が見つかりません。", requestId, articleId: params.id },
         { status: 404 }
       );
     }
@@ -36,26 +38,44 @@ export async function POST(
       `タグ: ${article.tags.join(", ") || "なし"}`
     ].join("\n");
 
-    const content = await withRetry(() =>
-      createChatCompletion({
-        model,
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a financial analyst. Output strictly valid JSON."
-          },
-          { role: "user", content: prompt }
-        ]
-      })
-    );
+    let content: string;
+    try {
+      content = await withRetry(() =>
+        createChatCompletion({
+          model,
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are a financial analyst. Output strictly valid JSON."
+            },
+            { role: "user", content: prompt }
+          ]
+        })
+      );
+    } catch (error) {
+      await logServiceError({
+        service: "OPENAI",
+        context: "ANALYSIS",
+        error,
+        requestId,
+        articleId: article.id,
+        sourceId: article.sourceId
+      });
+      throw error;
+    }
 
     const parsed = analysisSchema.safeParse(JSON.parse(content));
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "分析JSONの形式が不正です。" },
+        {
+          error: "分析JSONの形式が不正です。",
+          requestId,
+          articleId: article.id,
+          sourceId: article.sourceId
+        },
         { status: 422 }
       );
     }
@@ -70,14 +90,15 @@ export async function POST(
 
     return NextResponse.json({
       message: "分析を生成しました。",
-      analysisId: analysis.id
-    return NextResponse.json({
-      message: "分析生成は未実装です。次のステップで実装します。"
+      requestId,
+      analysisId: analysis.id,
+      articleId: article.id,
+      sourceId: article.sourceId
     });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { error: "分析生成でエラーが発生しました。" },
+      { error: "分析生成でエラーが発生しました。", requestId },
       { status: 500 }
     );
   }

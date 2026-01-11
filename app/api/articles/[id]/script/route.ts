@@ -1,12 +1,15 @@
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { getEnv } from "../../../../lib/env";
 import { createChatCompletion, withRetry } from "../../../../lib/openai";
 import { prisma } from "../../../../lib/prisma";
+import { logServiceError } from "../../../../lib/service-error-log";
 
 export async function POST(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
+  const requestId = randomUUID();
   try {
     const article = await prisma.article.findUnique({
       where: { id: params.id },
@@ -14,12 +17,11 @@ export async function POST(
         source: true,
         analyses: { orderBy: { createdAt: "desc" }, take: 1 }
       }
-      where: { id: params.id }
     });
 
     if (!article) {
       return NextResponse.json(
-        { error: "記事が見つかりません。" },
+        { error: "記事が見つかりません。", requestId, articleId: params.id },
         { status: 404 }
       );
     }
@@ -27,7 +29,12 @@ export async function POST(
     const analysis = article.analyses[0];
     if (!analysis) {
       return NextResponse.json(
-        { error: "先に分析を生成してください。" },
+        {
+          error: "先に分析を生成してください。",
+          requestId,
+          articleId: article.id,
+          sourceId: article.sourceId
+        },
         { status: 400 }
       );
     }
@@ -43,20 +50,33 @@ export async function POST(
       `分析JSON: ${JSON.stringify(analysis.contentJson)}`
     ].join("\n");
 
-    const scriptText = await withRetry(() =>
-      createChatCompletion({
-        model,
-        temperature: 0.4,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a professional script writer for finance podcasts."
-          },
-          { role: "user", content: prompt }
-        ]
-      })
-    );
+    let scriptText: string;
+    try {
+      scriptText = await withRetry(() =>
+        createChatCompletion({
+          model,
+          temperature: 0.4,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are a professional script writer for finance podcasts."
+            },
+            { role: "user", content: prompt }
+          ]
+        })
+      );
+    } catch (error) {
+      await logServiceError({
+        service: "OPENAI",
+        context: "ARTICLE_SCRIPT",
+        error,
+        requestId,
+        articleId: article.id,
+        sourceId: article.sourceId
+      });
+      throw error;
+    }
 
     const script = await prisma.script.create({
       data: {
@@ -68,14 +88,15 @@ export async function POST(
 
     return NextResponse.json({
       message: "台本を生成しました。",
-      scriptId: script.id
-    return NextResponse.json({
-      message: "台本生成は未実装です。次のステップで実装します。"
+      requestId,
+      scriptId: script.id,
+      articleId: article.id,
+      sourceId: article.sourceId
     });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { error: "台本生成でエラーが発生しました。" },
+      { error: "台本生成でエラーが発生しました。", requestId },
       { status: 500 }
     );
   }
