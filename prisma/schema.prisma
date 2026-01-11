@@ -35,6 +35,7 @@ model Article {
   id            String   @id @default(cuid())
   sourceId      String
   url           String   @unique
+  urlNormalized String   @unique
   urlNormalized String
   title         String
   publishedAt   DateTime?

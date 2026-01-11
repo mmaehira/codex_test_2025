@@ -126,6 +126,15 @@ npm run dev
 
 ## 運用方法 (Cron/API 呼び出し)
 
+### RSS ソースの登録
+
+```sql
+insert into "Source" ("id", "name", "rssUrl", "enabled", "createdAt")
+values ('source-1', '日経', 'https://www.nikkei.com/rss/newsrelease.rdf', true, now());
+```
+
+※ `id` は任意のユニークな文字列でOKです。
+
 ### RSS 取り込み
 
 ```bash
@@ -158,5 +167,6 @@ curl -X POST http://localhost:3000/api/digest/daily
 
 ## 開発メモ
 
+- RSS取り込み/LLM分析/TTS/メール送信はAPIキーと外部サービス設定が必須です。
 - まだRSS取り込みやLLM/TTS/メール送信は未実装です。次のステップで実装します。
 - 記事本文は保存しません。保存対象はURL、タイトル、媒体名、公開日時、抜粋、タグ、生成物のみです。

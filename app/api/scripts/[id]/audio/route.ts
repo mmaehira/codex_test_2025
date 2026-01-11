@@ -1,4 +1,10 @@
 import { NextResponse } from "next/server";
+import { getEnv } from "../../../../lib/env";
+import { createSpeech, withRetry } from "../../../../lib/openai";
+import { prisma } from "../../../../lib/prisma";
+import { uploadAudio } from "../../../../lib/storage";
+
+export const runtime = "nodejs";
 import { prisma } from "../../../../lib/prisma";
 
 export async function POST(
@@ -17,6 +23,30 @@ export async function POST(
       );
     }
 
+    const voice = getEnv("OPENAI_TTS_VOICE", "alloy") ?? "alloy";
+    const audioBuffer = await withRetry(() =>
+      createSpeech({
+        model: "gpt-4o-mini-tts",
+        voice,
+        input: script.text
+      })
+    );
+
+    const storageKey = `audio/${script.id}-${Date.now()}.mp3`;
+    const stored = await uploadAudio(storageKey, audioBuffer);
+
+    const audioFile = await prisma.audioFile.create({
+      data: {
+        scriptId: script.id,
+        storageKey: stored.storageKey,
+        publicUrl: stored.publicUrl
+      }
+    });
+
+    return NextResponse.json({
+      message: "音声を生成しました。",
+      audioFileId: audioFile.id,
+      publicUrl: stored.publicUrl
     return NextResponse.json({
       message: "音声生成は未実装です。次のステップで実装します。"
     });
