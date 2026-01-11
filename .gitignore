@@ -1,3 +1,15 @@
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.db
+*.db-journal
+.env
+.venv/
+backend/.venv/
+frontend/node_modules/
+frontend/dist/
+.DS_Store
+PYTEST_DEBUG.log
 node_modules
 .next
 .env
