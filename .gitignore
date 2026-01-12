@@ -12,3 +12,6 @@ frontend/dist/
 PYTEST_DEBUG.log
 node_modules
 .next
+public/uploads/
+public/audio/
+*.mp3
