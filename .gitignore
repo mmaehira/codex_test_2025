@@ -12,5 +12,3 @@ frontend/dist/
 PYTEST_DEBUG.log
 node_modules
 .next
-.env
-.DS_Store

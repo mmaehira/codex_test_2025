@@ -1,15 +1,12 @@
-import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
-import { getEnv } from "../../../../lib/env";
-import { createChatCompletion, withRetry } from "../../../../lib/openai";
-import { prisma } from "../../../../lib/prisma";
-import { logServiceError } from "../../../../lib/service-error-log";
+import { getEnv } from "../../../../../lib/env";
+import { createChatCompletion, withRetry } from "../../../../../lib/openai";
+import { prisma } from "../../../../../lib/prisma";
 
 export async function POST(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
-  const requestId = randomUUID();
   try {
     const article = await prisma.article.findUnique({
       where: { id: params.id },
@@ -21,7 +18,7 @@ export async function POST(
 
     if (!article) {
       return NextResponse.json(
-        { error: "記事が見つかりません。", requestId, articleId: params.id },
+        { error: "記事が見つかりません。" },
         { status: 404 }
       );
     }
@@ -29,12 +26,7 @@ export async function POST(
     const analysis = article.analyses[0];
     if (!analysis) {
       return NextResponse.json(
-        {
-          error: "先に分析を生成してください。",
-          requestId,
-          articleId: article.id,
-          sourceId: article.sourceId
-        },
+        { error: "先に分析を生成してください。" },
         { status: 400 }
       );
     }
@@ -50,33 +42,20 @@ export async function POST(
       `分析JSON: ${JSON.stringify(analysis.contentJson)}`
     ].join("\n");
 
-    let scriptText: string;
-    try {
-      scriptText = await withRetry(() =>
-        createChatCompletion({
-          model,
-          temperature: 0.4,
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are a professional script writer for finance podcasts."
-            },
-            { role: "user", content: prompt }
-          ]
-        })
-      );
-    } catch (error) {
-      await logServiceError({
-        service: "OPENAI",
-        context: "ARTICLE_SCRIPT",
-        error,
-        requestId,
-        articleId: article.id,
-        sourceId: article.sourceId
-      });
-      throw error;
-    }
+    const scriptText = await withRetry(() =>
+      createChatCompletion({
+        model,
+        temperature: 0.4,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a professional script writer for finance podcasts."
+          },
+          { role: "user", content: prompt }
+        ]
+      })
+    );
 
     const script = await prisma.script.create({
       data: {
@@ -88,15 +67,12 @@ export async function POST(
 
     return NextResponse.json({
       message: "台本を生成しました。",
-      requestId,
-      scriptId: script.id,
-      articleId: article.id,
-      sourceId: article.sourceId
+      scriptId: script.id
     });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { error: "台本生成でエラーが発生しました。", requestId },
+      { error: "台本生成でエラーが発生しました。" },
       { status: 500 }
     );
   }
