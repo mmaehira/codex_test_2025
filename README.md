@@ -40,6 +40,9 @@ npm run dev
 | `OPENAI_API_KEY` | OpenAI API キー |
 | `OPENAI_MODEL` | LLM モデル名 |
 | `OPENAI_TTS_VOICE` | TTS ボイス名 |
+| `STORAGE_MODE` | `s3` または `local` (未設定時は `s3`) |
+| `LOCAL_STORAGE_DIR` | ローカル保存先ディレクトリ (例: `public/uploads`) |
+| `LOCAL_STORAGE_PUBLIC_PATH` | ローカル公開パス (例: `/uploads`) |
 | `S3_ENDPOINT` | S3 互換ストレージのエンドポイント |
 | `S3_REGION` | S3 リージョン |
 | `S3_BUCKET` | バケット名 |
@@ -49,6 +52,18 @@ npm run dev
 | `SENDGRID_API_KEY` | SendGrid API キー |
 | `MAIL_TO` | 送信先メール |
 | `MAIL_FROM` | 送信元メール |
+
+### ローカルに音声を保存する場合
+
+S3 を用意せずに試す場合は、以下の環境変数を設定してください。
+
+```env
+STORAGE_MODE=local
+LOCAL_STORAGE_DIR=public/uploads
+LOCAL_STORAGE_PUBLIC_PATH=/uploads
+```
+
+`PUBLIC_BASE_URL` が設定されている場合は、生成された音声URLが `PUBLIC_BASE_URL` を基準に作られます。
 
 ## 画面
 
