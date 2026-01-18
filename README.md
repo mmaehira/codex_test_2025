@@ -44,6 +44,7 @@ npm run dev
 | `LOCAL_STORAGE_DIR` | ローカル保存先ディレクトリ (例: `public/uploads`) |
 | `LOCAL_STORAGE_PUBLIC_PATH` | ローカル公開パス (例: `/uploads`) |
 | `S3_ENDPOINT` | S3 互換ストレージのエンドポイント |
+| `S3_PUBLIC_ENDPOINT` | 公開配信用のエンドポイント (例: R2 の `https://<bucket>.<account>.r2.dev`) |
 | `S3_REGION` | S3 リージョン |
 | `S3_BUCKET` | バケット名 |
 | `S3_ACCESS_KEY_ID` | アクセスキー |
@@ -64,6 +65,16 @@ LOCAL_STORAGE_PUBLIC_PATH=/uploads
 ```
 
 `PUBLIC_BASE_URL` が設定されている場合は、生成された音声URLが `PUBLIC_BASE_URL` を基準に作られます。
+
+### Cloudflare R2 で公開再生する場合
+
+R2 の API エンドポイント (`S3_ENDPOINT`) と公開配信用エンドポイントを分けて設定してください。
+
+```env
+STORAGE_MODE=s3
+S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+S3_PUBLIC_ENDPOINT=https://<bucket>.<account-id>.r2.dev
+```
 
 ## 画面
 

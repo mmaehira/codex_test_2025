@@ -60,6 +60,8 @@ export async function uploadAudio(
 
   const bucket = requireEnv("S3_BUCKET");
   const endpoint = requireEnv("S3_ENDPOINT").replace(/\/$/, "");
+  const publicEndpoint =
+    (getEnv("S3_PUBLIC_ENDPOINT") ?? endpoint).replace(/\/$/, "");
   const client = createS3Client();
 
   await client.send(
@@ -73,6 +75,6 @@ export async function uploadAudio(
 
   return {
     storageKey: normalizeStorageKey(storageKey),
-    publicUrl: `${endpoint}/${bucket}/${normalizeStorageKey(storageKey)}`
+    publicUrl: `${publicEndpoint}/${bucket}/${normalizeStorageKey(storageKey)}`
   };
 }
