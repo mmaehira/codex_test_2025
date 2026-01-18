@@ -62,6 +62,7 @@ export async function uploadAudio(
   const endpoint = requireEnv("S3_ENDPOINT").replace(/\/$/, "");
   const publicEndpoint =
     (getEnv("S3_PUBLIC_ENDPOINT") ?? endpoint).replace(/\/$/, "");
+  console.log("[storage] endpoint:", endpoint, "public:", publicEndpoint);
   const client = createS3Client();
 
   await client.send(
